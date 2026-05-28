@@ -1,0 +1,156 @@
+--CMO Lua Files
+--Setup
+--Decision Points
+assist = ScenEdit_MsgBox("Command Decision\n-----------------------------------------------------\n\nAssist French forces in the defense of Djibouti?. \n\nOptions:\n\n*YES: Invading forces will consider all CJTF-HOA units hostile.\n\n*NO: Meet the terms of the invading forces.\n\nTerms:\n=================================\n     -Within one hour all CJTF-HOA forces are moved East of the 43 E and South of 12 N.\n\n    -Units beyond these boundaries will be considered hostile.\n\n    -CJTF forces remaining neutral will not be engaged.\n\n    -Currently friendly forces are changed to neutral.",4)
+if assist == 'Yes' then
+    newunit=ScenEdit_AddUnit({type=2,dbid=1951,side='Eritrean Defense Forces',latitude='N 13.01.53', longitude='E 42.49.31',throttle='full'})
+    ScenEdit_AssignUnitToMission(newunit.name,'Strike Destroyer')
+    ScenEdit_SetMission({sidename='Eritrean Defense Forces','Strike Destroyer'})
+elseif assist == 'No' then
+    local timenow = ScenEdit_CurrentTime()
+    local termstime = timenow + 60 * 60
+    ScenEdit_SetTrigger({name='CJTF - Terms Timer',side='CJTF-HOA',mode='add',type='time',time=os.date("%m/%d/%Y %I:%M %p", termstime)})
+end
+--
+--Map and RP Stuff
+
+--Grab RPs from one side and copy them to the other.
+local names = {}
+for i = 1, 20 do
+    table.insert(names, 'AAE-1.' .. i)
+end
+--
+local rps = ScenEdit_GetReferencePoints({side='Myanmar', area=names})
+
+for _, rp in ipairs(rps) do
+    ScenEdit_AddReferencePoint({side='Pendulum', name=rp.name, lat=rp.latitude, lon=rp.longitude})
+    print('Copied: ' .. rp.name)
+end
+--
+--Set Exclusion Zone to Active
+ScenEdit_SetZone('Eritrean Defense Forces',1,{description='AOR',isactive=true})
+--
+--Add Random Traffic. This is not my script. I dont remember who created it, but I made some changes.
+math.randomseed(os.time())
+
+merch_num = math.random(5,10) --change 5 or 10 to your specified minimum and maximum number of merchants
+
+for i = 1,merch_num do
+redo_count = 0
+::redo::
+local lat_var = math.random(1,(10^13))
+local lon_var = math.random(1,(10^13))
+v_lat = math.random(11,13) + (lat_var/(10^13)) --change the first set (south is negative) to your specified minimum and maximum latitude values; it's important that the first number is smaller than the second.
+
+v_lon = math.random(43,45) + (lon_var/(10^13)) --change first set (west is negative!) to your specified minimum and maximum longitude values; it's important that the first number is smaller than the second.
+
+elevation = World_GetElevation({latitude=v_lat, longitude=v_lon})
+if elevation > -10 then --Checks to see if the water is deep enough, adjust as you please
+
+redo_count = redo_count + 1
+print("no")
+if redo_count >50 then
+print (redo_count .. 'ships were not able to find a suitable spot for placement. Re-check latitude and longitude settings')
+break --this cuts the loop if there are no suitable positions found after 50 tries, prevents infinite loop/game freeze
+
+else
+goto redo --retries the placement if the water is too shallow
+
+end
+end
+DBIDTABLE = { 775, 2027, 2029, 2028, 2030, 774, 2026, 2031, 2775, 2023, 773, 2774, 1001, 1374, 2773, 2776, 1006, 222, 1599, 2034, 1002, 1317, 144, 339, 275, 145, 2022, 259 } --list of DBIDs
+
+DBID = DBIDTABLE[math.random( 1, #DBIDTABLE)]
+local new_merch = ScenEdit_AddUnit({side='Civilians', type='Ship',name='Merchant #'..i, dbid=DBID,latitude=v_lat,longitude=v_lon,throttle='cruise',heading=math.random(0,359)})
+local fuel = new_merch.fuel
+fuel[3001].current = fuel[3001].max*math.random(600, 800)/1000
+new_merch.fuel = fuel
+--ScenEdit_AssignUnitToMission( new_merch.name, 'Marakib')
+
+print (new_merch.name..' with dbid '..DBID..' was created in water with a depth of '..elevation..'m')
+end
+--
+--Units
+--Add Units
+for i=1,4 do
+    local unit=ScenEdit_AddUnit({type='Aircraft', name='Provence #'..i, dbid=5272, loadoutid=22982, heading=248,side='French Forces',latitude="N13.18.00",longitude="E49.00.00",altitude="37000ft",proficiency=4})
+    unit.group="EC 1/7 Provence"
+    local unitfuel = unit.fuel
+    unitfuel[2001].current=3551
+    unit.fuel = unitfuel
+    unit.obeyEMCON=false
+    unit.sensors={sensor_guid=unit.sensors[1].sensor_guidv,sensor_isactive=true}
+    ScenEdit_SetUnit({side='French Forces',guid=unit.guid,base='Djibouti-Ambouli International Airport'})
+end
+--Add Unit 
+ScenEdit_SetUnit({side='French Forces',name='EC 1/7 Provence',throttle='loiter',course={{latitude='N 11.43.28',longitude='E 43.11.51'}}})
+function randomFloat(lower, greater)
+    return lower + math.random()  * (greater - lower);
+end
+
+v_lat = randomFloat(11.076,11.601)
+v_lon = randomFloat(41.801,42.347)
+unit = ScenEdit_AddUnit({type='Aircraft', name='Apollo #8', dbid=5595, loadoutid=21689, heading=285,side='CJTF-HOA',latitude=v_lat,longitude=v_lon,altitude="37000ft",proficiency=4,throttle='loiter'})
+local unitfuel = unit.fuel
+unitfuel[2001].current=1321
+unit.fuel = unitfuel
+ScenEdit_SetUnit({side='CJTF-HOA',guid=unit.guid,base='Chabelley Airport'})
+ScenEdit_AssignUnitToMission(unit.guid,'UCAV Reconaissance')
+--
+--Add Unit
+function randomFloat(lower, greater)
+    return lower + math.random()  * (greater - lower);
+end
+
+v_lat = randomFloat(12.537,12.915)
+v_lon = randomFloat(42.443,43.038)
+for i=3,4 do
+    local unit=ScenEdit_AddUnit({type='Aircraft', name='Gun #'..i, dbid=5921, loadoutid=31723, heading=90,side='Eritrean Defense Forces',latitude=v_lat,longitude=v_lon,altitude="1100ft",proficiency=2})
+    unit.group="Grumpy 21"
+    local unitfuel = unit.fuel
+    unitfuel[2001].current=1009
+    unit.fuel = unitfuel
+    ScenEdit_SetUnit({guid=unit.guid,base='Assab International Airport'})
+    ScenEdit_AssignUnitToMission(unit.guid,'CAS')
+end
+ScenEdit_SetUnit({side='Eritrean Defense Forces', name='Grumpy 21', throttle='loiter',course={{latitude='N 12.44.09',longitude='E 42.58.43'}}})
+--
+--Move Unit along waypoints (Not RPs)
+sidename='Eritrean Defense Forces'
+units={'Support Battalion'}
+for j,k in pairs(units) do
+    local unit=ScenEdit_GetUnit({side=sidename,name=k})
+    ScenEdit_SetUnit({side=sidename,guid=unit.guid,course={{latitude='N 12.43.35',longitude='E 43.05.02'},{latitude='N 12.38.34',longitude='E 43.07.38'},{latitude='N 12.35.23',longitude='E 43.11.41'},speed=10})
+end
+--
+--Unit RTB
+local unit=ScenEdit_GetUnit({side='Civilians',name='Etheopian Airlines Flt#1461'})
+print(unit)
+ScenEdit_SetUnit({side='Civilians',guid=unit.guid,RTB='YES'})
+--
+--Missions
+--Assign Units to Mission
+units={'Hawk #1','Hawk #2','Hawk #3','Hawk #4'}
+for j,k in pairs(units) do
+    ScenEdit_AssignUnitToMission(k,"Air Recon and Support")
+end
+--
+--ROE
+--Set Postures
+ScenEdit_SetSidePosture('Eritrean Defense Forces','Djibouti Defense Forces','H')
+ScenEdit_SetSidePosture('Djibouti Defense Forces','Eritrean Defense Forces','H')
+ScenEdit_SetSidePosture('Eritrean Defense Forces','French Forces','H')
+ScenEdit_SetSidePosture('French Forces','Eritrean Defense Forces','H')
+ScenEdit_SetSidePosture('Eritrean Defense Forces','CJTF-HOA','U')
+ScenEdit_SetSidePosture('CJTF-HOA','Eritean Defense Forces','U')
+--
+--Change ROE of a Unit
+ScenEdit_SetDoctrine({side="Etheopian Defense Forces"}, {weapon_control_status_land=0,weapon_control_status_surface=0,weapon_control_status_air=0,engage_opportunity_targets=true})
+--Change ROE for many Units
+sidename='Eritrean Defense Forces'
+units={'Fire Support','Support Battalion','Cavalry Squadron','Recon Company','Cavalry Troop','Support Platoon'}
+for j,k in pairs(units) do
+    local unit=ScenEdit_GetUnit({side=sidename,name=k})
+    ScenEdit_SetDoctrine({side=sidename,guid=unit.guid},{weapon_control_status_land=0,weapon_control_status_surface=0,weapon_control_status_air=0,engage_opportunity_targets=true})
+end
+--
