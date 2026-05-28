@@ -47,63 +47,73 @@ local destinations_SE = {
     {lat=5.5, lon=100.5, heading=135 + math.random(-5, 5)},  -- Northern Malacca
 }
 
-DBIDTABLE = { 775, 16, 2028, 2030, 774, 2026, 2031, 2775, 2023, 2357, 2774, 1001, 1374, 2773, 2776, 1006, 222, 1599, 2034, 1002, 328, 144, 339, 275, 145, 2022, 259 }
+local DBIDTABLE = {775, 2027, 2029, 2028, 2030, 774, 2026, 2031, 2775, 2023, 773, 2774, 1001, 1374, 2773, 2776, 1006, 222, 1599, 2034, 1002, 1317, 144, 339, 275, 145, 2022, 259}
 
-local merch_num = math.random(5, 25)
+-- Zone definitions
+local zones = {
+    {lat_min=13, lat_max=16, lon_min=91, lon_max=95, count=math.random(3, 10)},  -- Southern zone
+    {lat_min=17, lat_max=20, lon_min=88, lon_max=93, count=math.random(3, 10)},  -- Northern zone
+}
 
-for i = 1, merch_num do
-    local placed = false
-    local attempts = 0
+local total = 0
 
-    while not placed do
-        attempts = attempts + 1
+for z, zone in ipairs(zones) do
+    for i = 1, zone.count do
+        local placed = false
+        local attempts = 0
+        local merch_id = total + i
 
-        if attempts > 50 then
-            print('Merchant #' .. i .. ' could not find a valid position after 50 attempts')
-            break
-        end
+        while not placed do
+            attempts = attempts + 1
 
-        local v_lat = randFloat(13, 16)
-        local v_lon = randFloat(91, 95)
-        local elevation = World_GetElevation({latitude=v_lat, longitude=v_lon})
-
-        if elevation < -100 then
-            local DBID = DBIDTABLE[math.random(1, #DBIDTABLE)]
-
-            -- Pick direction randomly
-            local dest
-            if math.random(0, 1) == 0 then
-                dest = destinations_SE[1]
-            else
-                dest = destinations_NW[math.random(1, #destinations_NW)]
+            if attempts > 50 then
+                print('Merchant #' .. merch_id .. ' could not find a valid position after 50 attempts')
+                break
             end
 
-            local new_merch = ScenEdit_AddUnit({
-                side = 'Civilian',
-                type = 'Ship',
-                name = 'Merchant #' .. i,
-                dbid = DBID,
-                latitude = v_lat,
-                longitude = v_lon,
-                speed = math.random(8, 15),
-                heading = dest.heading
-            })
+            local v_lat = randFloat(zone.lat_min, zone.lat_max)
+            local v_lon = randFloat(zone.lon_min, zone.lon_max)
+            local elevation = World_GetElevation({latitude=v_lat, longitude=v_lon})
 
-            -- Assign destination as course waypoint
-            new_merch.course = {{latitude=dest.lat, longitude=dest.lon}}
+            if elevation < -100 then
+                local DBID = DBIDTABLE[math.random(1, #DBIDTABLE)]
 
-            -- Randomize fuel load
-            local fuel = new_merch.fuel
-            fuel[3001].current = fuel[3001].max * math.random(600, 800) / 1000
-            new_merch.fuel = fuel
+                -- Pick direction randomly
+                local dest
+                if math.random(0, 1) == 0 then
+                    dest = destinations_SE[1]
+                else
+                    dest = destinations_NW[math.random(1, #destinations_NW)]
+                end
 
-            placed = true
-            print('Placed Merchant #' .. i .. ' heading to ' .. dest.lat .. ', ' .. dest.lon)
+                local new_merch = ScenEdit_AddUnit({
+                    side = 'Civilian',
+                    type = 'Ship',
+                    name = 'Merchant #' .. merch_id,
+                    dbid = DBID,
+                    latitude = v_lat,
+                    longitude = v_lon,
+                    speed = math.random(8, 15),
+                    heading = dest.heading
+                })
+
+                -- Assign destination as course waypoint
+                new_merch.course = {{latitude=dest.lat, longitude=dest.lon}}
+
+                -- Randomize fuel load
+                local fuel = new_merch.fuel
+                fuel[3001].current = fuel[3001].max * math.random(600, 800) / 1000
+                new_merch.fuel = fuel
+
+                placed = true
+                print('Zone ' .. z .. ' Merchant #' .. merch_id .. ' heading to ' .. dest.lat .. ', ' .. dest.lon)
+            end
         end
     end
+    total = total + zone.count
 end
 
-print('Done. ' .. merch_num .. ' merchants requested.')
+print('Done. ' .. total .. ' merchants placed.')
 
 --ScenEdit_AssignUnitToMission( new_merch.name, 'Marakib')
 
