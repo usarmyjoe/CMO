@@ -30,41 +30,81 @@ end
 --Set Exclusion Zone to Active
 ScenEdit_SetZone('Eritrean Defense Forces',1,{description='AOR',isactive=true})
 --
---Add Random Traffic. This is not my script. I dont remember who created it, but I made some changes.
+--Add Random Traffic. 
 math.randomseed(os.time())
 
-merch_num = math.random(5,10) --change 5 or 10 to your specified minimum and maximum number of merchants
-
-for i = 1,merch_num do
-redo_count = 0
-::redo::
-local lat_var = math.random(1,(10^13))
-local lon_var = math.random(1,(10^13))
-v_lat = math.random(11,13) + (lat_var/(10^13)) --change the first set (south is negative) to your specified minimum and maximum latitude values; it's important that the first number is smaller than the second.
-
-v_lon = math.random(43,45) + (lon_var/(10^13)) --change first set (west is negative!) to your specified minimum and maximum longitude values; it's important that the first number is smaller than the second.
-
-elevation = World_GetElevation({latitude=v_lat, longitude=v_lon})
-if elevation > -10 then --Checks to see if the water is deep enough, adjust as you please
-
-redo_count = redo_count + 1
-print("no")
-if redo_count >50 then
-print (redo_count .. 'ships were not able to find a suitable spot for placement. Re-check latitude and longitude settings')
-break --this cuts the loop if there are no suitable positions found after 50 tries, prevents infinite loop/game freeze
-
-else
-goto redo --retries the placement if the water is too shallow
-
+local function randFloat(min, max)
+    return min + math.random() * (max - min)
 end
-end
-DBIDTABLE = { 775, 2027, 2029, 2028, 2030, 774, 2026, 2031, 2775, 2023, 773, 2774, 1001, 1374, 2773, 2776, 1006, 222, 1599, 2034, 1002, 1317, 144, 339, 275, 145, 2022, 259 } --list of DBIDs
 
-DBID = DBIDTABLE[math.random( 1, #DBIDTABLE)]
-local new_merch = ScenEdit_AddUnit({side='Civilians', type='Ship',name='Merchant #'..i, dbid=DBID,latitude=v_lat,longitude=v_lon,throttle='cruise',heading=math.random(0,359)})
-local fuel = new_merch.fuel
-fuel[3001].current = fuel[3001].max*math.random(600, 800)/1000
-new_merch.fuel = fuel
+-- Destinations with headings and +/- 5 degree variance
+local destinations_NW = {
+    {lat=22.3, lon=91.8, heading=340 + math.random(-5, 5)},  -- Chittagong
+    {lat=16.5, lon=96.4, heading=320 + math.random(-5, 5)},  -- Yangon/Thilawa
+}
+
+local destinations_SE = {
+    {lat=5.5, lon=100.5, heading=135 + math.random(-5, 5)},  -- Northern Malacca
+}
+
+local DBIDTABLE = {775, 2027, 2029, 2028, 2030, 774, 2026, 2031, 2775, 2023, 773, 2774, 1001, 1374, 2773, 2776, 1006, 222, 1599, 2034, 1002, 1317, 144, 339, 275, 145, 2022, 259}
+
+local merch_num = math.random(5, 25)
+
+for i = 1, merch_num do
+    local placed = false
+    local attempts = 0
+
+    while not placed do
+        attempts = attempts + 1
+
+        if attempts > 50 then
+            print('Merchant #' .. i .. ' could not find a valid position after 50 attempts')
+            break
+        end
+
+        local v_lat = randFloat(13, 16)
+        local v_lon = randFloat(91, 95)
+        local elevation = World_GetElevation({latitude=v_lat, longitude=v_lon})
+
+        if elevation < -100 then
+            local DBID = DBIDTABLE[math.random(1, #DBIDTABLE)]
+
+            -- Pick direction randomly
+            local dest
+            if math.random(0, 1) == 0 then
+                dest = destinations_SE[1]
+            else
+                dest = destinations_NW[math.random(1, #destinations_NW)]
+            end
+
+            local new_merch = ScenEdit_AddUnit({
+                side = 'Civilian',
+                type = 'Ship',
+                name = 'Merchant #' .. i,
+                dbid = DBID,
+                latitude = v_lat,
+                longitude = v_lon,
+                speed = math.random(8, 15),
+                heading = dest.heading
+            })
+
+            -- Assign destination as course waypoint
+            new_merch.course = {{latitude=dest.lat, longitude=dest.lon}}
+
+            -- Randomize fuel load
+            local fuel = new_merch.fuel
+            fuel[3001].current = fuel[3001].max * math.random(600, 800) / 1000
+            new_merch.fuel = fuel
+
+            placed = true
+            print('Placed Merchant #' .. i .. ' heading to ' .. dest.lat .. ', ' .. dest.lon)
+        end
+    end
+end
+
+print('Done. ' .. merch_num .. ' merchants requested.')
+
 --ScenEdit_AssignUnitToMission( new_merch.name, 'Marakib')
 
 print (new_merch.name..' with dbid '..DBID..' was created in water with a depth of '..elevation..'m')
